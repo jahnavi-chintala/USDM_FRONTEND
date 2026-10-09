@@ -7,6 +7,13 @@ All notable changes to this project are listed here. The format follows
 
 ### Added
 
+- Review: the list of source PDFs with audit history, and per source the fields sorted
+  worst-first (block, review, auto-accept; then lowest confidence), with low-confidence rows
+  highlighted, the source-PDF crop of each field, its full history, audited edits (value,
+  reason, reviewer id) and certification with the post-edit distance summary. Same features as
+  the backend's HTMX review tool, against the proposed JSON API in `docs/api-contract.md`
+  (mocked until the backend implements it).
+- The reviewer id entered once is reused in every edit and certification form.
 - Convert: upload a protocol PDF (drag and drop or file picker), follow the conversion job
   (polled every 10 s), and see the result: field-decision counts, validation gates, run details,
   a collapsible USDM JSON viewer, and downloads of the USDM document and the report.
