@@ -10,6 +10,17 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: { port: 5173 },
+  // Pre-bundle every dependency at start-up (including those only reached through the
+  // lazily loaded mocks), so the dev server never reloads the page mid-session or mid-test.
+  optimizeDeps: {
+    entries: [
+      'index.html',
+      'src/**/*.{ts,tsx}',
+      '!src/**/*.test.{ts,tsx}',
+      '!src/test/**',
+      '!src/mocks/server.ts',
+    ],
+  },
   build: {
     rollupOptions: {
       output: {

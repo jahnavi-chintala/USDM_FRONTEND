@@ -27,3 +27,10 @@ test('remembers settings for the session', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByLabel('Reviewer id')).toHaveValue('jdoe');
 });
+
+test('fits a phone screen without horizontal scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/convert');
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+});

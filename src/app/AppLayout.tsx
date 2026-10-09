@@ -23,11 +23,19 @@ export function AppLayout() {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="sticky" color="primary">
-        <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" component="span" sx={{ mr: 2, whiteSpace: 'nowrap' }}>
-            USDM4 Converter
+        <Toolbar sx={{ gap: { xs: 1, sm: 2 } }}>
+          <Typography variant="h6" component="span" sx={{ mr: { sm: 2 }, whiteSpace: 'nowrap' }}>
+            USDM4
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              {' '}
+              Converter
+            </Box>
           </Typography>
-          <Box component="nav" aria-label="Main" sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+          <Box
+            component="nav"
+            aria-label="Main"
+            sx={{ display: 'flex', gap: { xs: 0, sm: 1 }, flexGrow: 1 }}
+          >
             {NAV_ITEMS.map((item) => (
               <Button
                 key={item.to}
