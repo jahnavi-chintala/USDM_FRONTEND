@@ -3,28 +3,29 @@ import { resolveConfig } from './env';
 describe('resolveConfig', () => {
   it('uses local development defaults when nothing is set', () => {
     expect(resolveConfig({}, {} as ImportMetaEnv)).toEqual({
-      convertApiUrl: 'http://localhost:8080',
-      reviewApiUrl: 'http://localhost:8000',
-      jobPollIntervalMs: 10_000,
+      apiUrl: 'http://localhost:8080',
+      pollIntervalMs: 10_000,
       mocksEnabled: false,
     });
   });
 
   it('prefers runtime config over build-time variables and strips trailing slashes', () => {
-    const config = resolveConfig({ convertApiUrl: 'https://api.example.com/', reviewApiUrl: ' ' }, {
-      VITE_CONVERT_API_URL: 'http://ignored',
-      VITE_REVIEW_API_URL: 'http://review/',
-    } as ImportMetaEnv);
-    expect(config.convertApiUrl).toBe('https://api.example.com');
-    expect(config.reviewApiUrl).toBe('http://review');
+    expect(
+      resolveConfig({ apiUrl: 'https://api.example.com/' }, {
+        VITE_API_URL: 'http://ignored',
+      } as ImportMetaEnv).apiUrl,
+    ).toBe('https://api.example.com');
+    expect(
+      resolveConfig({ apiUrl: ' ' }, { VITE_API_URL: 'http://build/' } as ImportMetaEnv).apiUrl,
+    ).toBe('http://build');
   });
 
   it('ignores an invalid poll interval', () => {
     expect(
-      resolveConfig({}, { VITE_JOB_POLL_INTERVAL_MS: 'soon' } as ImportMetaEnv).jobPollIntervalMs,
+      resolveConfig({}, { VITE_POLL_INTERVAL_MS: 'soon' } as ImportMetaEnv).pollIntervalMs,
     ).toBe(10_000);
     expect(
-      resolveConfig({}, { VITE_JOB_POLL_INTERVAL_MS: '2500' } as ImportMetaEnv).jobPollIntervalMs,
+      resolveConfig({}, { VITE_POLL_INTERVAL_MS: '2500' } as ImportMetaEnv).pollIntervalMs,
     ).toBe(2500);
   });
 });

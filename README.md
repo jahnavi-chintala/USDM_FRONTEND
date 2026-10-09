@@ -1,16 +1,23 @@
-# USDM4 Converter — Frontend
+# iDigitise Protocol — Frontend
 
 Web interface for **USDM4-Assure**
 ([backend](https://github.com/Lucifer0190/usdm_4_convertor_backend)), which converts clinical
 trial protocol PDFs into CDISC **USDM 4.0** JSON.
 
-- **Convert**: upload a protocol PDF, follow the conversion job, then view and download the USDM
-  document and its quality report.
-- **Review**: go through the extracted fields worst-first, check each against the source PDF,
-  correct values with a recorded reason, and certify the run (21 CFR Part 11 audit trail).
+The screens follow the **iDigitise Protocol UI** design:
 
-> **Status:** in active development on `dev`. The review screens run against mock data until
-> the backend's review JSON API exists, see [docs/api-contract.md](docs/api-contract.md).
+- **Home**: counts, upload card, and the protocols **In Progress** and **Approved**, with
+  search and a status filter.
+- **Upload**: one or several PDF or Word files, each tracked on its own with a specific reason
+  and Retry when one is refused.
+- **Processing**: the three stages (Extracting Text → Mapping to USDM → Validating) with a
+  live log; a **Failed** screen with the reason, what to do, Retry and Re-upload.
+- **Review per USDM class**: approve, reject, edit (with a reason) or re-extract each class,
+  with every value's verbatim quote highlighted on the source page and a live confidence score.
+- **Approved**: download the USDM JSON or store it in the database.
+
+> **Status:** in active development on `dev`. Every screen runs against mock data until the
+> backend implements the proposed API, see [docs/api-contract.md](docs/api-contract.md).
 
 ## Contents
 
@@ -34,12 +41,12 @@ npm run dev:mock     # http://localhost:5173, every API call mocked, no backend 
 Against a real backend:
 
 ```bash
-cp .env.example .env.local   # set the backend URLs if they are not the defaults
+cp .env.example .env.local   # set the backend URL if it is not the default
 npm run dev
 ```
 
 The backend must allow the frontend's origin (CORS); see
-[docs/api-contract.md](docs/api-contract.md#2-cors-needed).
+[docs/api-contract.md](docs/api-contract.md#3-cors-needed).
 
 ## Scripts
 
@@ -58,17 +65,16 @@ The backend must allow the frontend's origin (CORS); see
 
 ## Configuration
 
-| Variable (build time)       | Docker variable (run time) | Default                 | Meaning                                 |
-| --------------------------- | -------------------------- | ----------------------- | --------------------------------------- |
-| `VITE_CONVERT_API_URL`      | `CONVERT_API_URL`          | `http://localhost:8080` | Conversion API (`/v1/*`)                |
-| `VITE_REVIEW_API_URL`       | `REVIEW_API_URL`           | `http://localhost:8000` | Review API (`/api/review/*`)            |
-| `VITE_JOB_POLL_INTERVAL_MS` | —                          | `10000`                 | How often a running job is checked      |
-| `VITE_MOCKS`                | —                          | `false`                 | `true` answers all calls with mock data |
+| Variable (build time)   | Docker variable (run time) | Default                 | Meaning                                          |
+| ----------------------- | -------------------------- | ----------------------- | ------------------------------------------------ |
+| `VITE_API_URL`          | `API_URL`                  | `http://localhost:8080` | Protocol API (`/api/protocols/*`)                |
+| `VITE_POLL_INTERVAL_MS` | —                          | `10000`                 | How often a protocol still processing is checked |
+| `VITE_MOCKS`            | —                          | `false`                 | `true` answers all calls with mock data          |
 
 User settings (**⚙ Settings** in the top bar), kept for the browser tab only:
 
-- **API key**: sent as `X-API-Key` to the conversion API, when the backend requires one.
-- **Reviewer id**: recorded with every review edit and certification.
+- **API key**: sent as `X-API-Key` with every request, when the backend requires one.
+- **Reviewer id**: recorded with every review decision. Decisions are blocked until it is set.
 
 ## Project structure
 
@@ -76,7 +82,7 @@ User settings (**⚙ Settings** in the top bar), kept for the browser tab only:
 src/
   app/          App shell: providers, theme, layout, routes
   config/       Configuration (env.ts)
-  features/     convert/, review/, settings/ — each with api, hooks, components, pages
+  features/     protocols/, usdm-review/, settings/ — each with api, hooks, components, pages
   shared/       HTTP client, generic components, storage and utilities
   mocks/        Mock Service Worker handlers and fixtures
 e2e/            Playwright tests
@@ -98,15 +104,12 @@ CI runs both on every pull request (`.github/workflows/ci.yml`).
 ## Deployment (Docker)
 
 ```bash
-docker build -f docker/Dockerfile -t usdm4-frontend .
-docker run -p 3000:80 \
-  -e CONVERT_API_URL=https://usdm4-api.example.com \
-  -e REVIEW_API_URL=https://usdm4-review.example.com \
-  usdm4-frontend
+docker build -f docker/Dockerfile -t idigitise-frontend .
+docker run -p 3000:80 -e API_URL=https://usdm4-api.example.com idigitise-frontend
 ```
 
 or `docker compose up --build` (see `docker-compose.yml`). The image serves the static build
-with nginx; the backend URLs are written to `/config.js` at container start, so one image
+with nginx; the backend URL is written to `/config.js` at container start, so one image
 works in every environment. Health check: `GET /healthz`.
 
 ## Contributing

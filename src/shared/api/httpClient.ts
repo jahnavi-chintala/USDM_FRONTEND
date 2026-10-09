@@ -3,7 +3,7 @@ import { ApiError, messageFromBody } from './ApiError';
 export type QueryParams = Record<string, string | number | boolean | undefined>;
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   query?: QueryParams;
   /** Sent as JSON unless it is `FormData`. */
   body?: unknown;

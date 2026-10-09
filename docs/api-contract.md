@@ -2,41 +2,154 @@
 
 What this frontend expects from the backend
 ([`usdm_4_convertor_backend`](https://github.com/Lucifer0190/usdm_4_convertor_backend)).
+The screens follow the **iDigitise Protocol UI** design: protocols are uploaded (one or
+several, PDF or Word), processed in three named stages, reviewed **per USDM class**, then
+downloaded or stored.
 
-| Part                                                   | Status                                                | Base URL setting                           |
-| ------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------ |
-| [Conversion API](#1-conversion-api-exists) (`/v1/*`)   | **Exists** (`src/usdm4_api/app.py`)                   | `VITE_CONVERT_API_URL` / `CONVERT_API_URL` |
-| [CORS](#2-cors-needed)                                 | **Needed** — not configured today                     | —                                          |
-| [Review API](#3-review-api-proposed) (`/api/review/*`) | **Proposed** — the review tool only serves HTML today | `VITE_REVIEW_API_URL` / `REVIEW_API_URL`   |
+| Part                                                        | Status                        |
+| ----------------------------------------------------------- | ----------------------------- |
+| [Protocol API](#1-protocol-api-proposed) (`/api/protocols`) | **Proposed** — see gaps below |
+| [Class review API](#2-class-review-api-proposed)            | **Proposed** — does not exist |
+| [CORS](#3-cors-needed)                                      | **Needed** — not configured   |
 
-Until the backend changes land, run the frontend with mocks (`npm run dev:mock`); the mock
-handlers in `src/mocks/` follow this document exactly.
+All paths are relative to `API_URL` (`VITE_API_URL` at build time). Until the backend
+implements them, run the frontend with mocks (`npm run dev:mock`); the handlers in
+`src/mocks/protocols/` follow this document exactly.
+
+Every request carries `X-API-Key` when the user has set one in **Settings**. Errors use the
+FastAPI shape `{"detail": "message", "reason"?: "code"}`. Path segments are URL-encoded.
+
+### What the backend has today, and what is missing
+
+The existing `/v1/jobs` API converts one PDF in memory and reports
+`queued | running | done | failed`. To serve these screens it needs:
+
+1. **A database of protocols.** Jobs live in memory for about an hour, but Home lists every
+   protocol (In Progress and Approved) and keeps review decisions.
+2. **Word (`.docx`) upload.** The API accepts PDF only.
+3. **The three named stages** (`extracting_text`, `mapping_to_usdm`, `validating`) with a
+   progress figure and log lines, instead of only `running`.
+4. **Review per USDM class** (approve, reject, edit, re-extract) with an audit trail. The
+   current review tool works per field and serves HTML only.
+5. **Source pages as text**, to highlight each value's verbatim quote.
+6. **Store to database** for an approved protocol.
+
+Already supported and reused: the failure reasons `corrupt_pdf`, `encrypted_pdf`,
+`scanned_pdf_no_ocr`, the 15-minute timeout and the 60 MB limit.
 
 ---
 
-## 1. Conversion API (exists)
+## 1. Protocol API (proposed)
 
-Used as documented in the backend's `docs/api.md`. The frontend uses only the asynchronous
-job endpoints, because a conversion takes minutes.
+### Types
 
-| Call                                                                       | Used for                                                                       |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `POST /v1/jobs` (multipart, field `file`) → `202 {"id", "status", "poll"}` | Upload a protocol PDF                                                          |
-| `GET /v1/jobs/{id}?include_report=true`                                    | Poll every `VITE_JOB_POLL_INTERVAL_MS` (default 10 s) until `done` or `failed` |
-| `GET /health`                                                              | Not used yet                                                                   |
+```ts
+type ProtocolStatus = 'processing' | 'in_review' | 'approved' | 'failed';
+type ProcessingStage = 'extracting_text' | 'mapping_to_usdm' | 'validating';
+type FailureReason =
+  'scanned_pdf_no_ocr' | 'encrypted_pdf' | 'corrupt_pdf' | 'timeout' | 'validation_failed';
 
-Headers: `X-API-Key` when the user has set one in **Settings**.
+interface ProtocolSummary {
+  id: string;
+  name: string; // short study name, e.g. "ALPHA-301"
+  title: string; // one line, e.g. "Phase 3 · Oncology · Zelvatinib vs placebo"
+  file_name: string;
+  file_type: 'pdf' | 'docx';
+  page_count: number | null; // known once text extraction has finished
+  uploaded_at: string; // ISO 8601
+  status: ProtocolStatus;
+  stage: ProcessingStage | null; // while processing
+  stage_progress: number | null; // 0–100, while processing
+  classes_total: number;
+  classes_approved: number;
+  confidence: number | null; // 0–100, see "Confidence" below
+  failure: {
+    stage: ProcessingStage;
+    reason: FailureReason | null;
+    detail: string | null;
+    errors: string[]; // blocking validation errors
+  } | null;
+  stored: boolean; // approved output saved in the repository
+}
 
-Errors the UI explains to the user (see `src/features/convert/errorMessages.ts`):
-`400`, `401`, `413`, `503` on upload; `404` (job expired) on poll; and, inside a failed job,
-`http_status` 422 with `reason` = `corrupt_pdf` | `encrypted_pdf` | `scanned_pdf_no_ocr`
-(or none, with `assembler_errors`), `504` (timeout), `500`.
+interface ProtocolDetail extends ProtocolSummary {
+  log: { at: string; level: 'info' | 'success' | 'warning' | 'error'; message: string }[];
+}
+```
 
-## 2. CORS (needed)
+### Endpoints
+
+| Method and path                      | Body                                     | Response                                                                        |
+| ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /api/protocols`                 | —                                        | `ProtocolSummary[]`                                                             |
+| `POST /api/protocols`                | multipart, field `file` (PDF or `.docx`) | `201 ProtocolSummary` (status `processing`)                                     |
+| `GET /api/protocols/{id}`            | —                                        | `ProtocolDetail`                                                                |
+| `POST /api/protocols/{id}/retry`     | —                                        | `ProtocolSummary`: processing restarts on the uploaded file                     |
+| `POST /api/protocols/{id}/reextract` | `{ "reviewer_id" }`                      | `ProtocolSummary`: processing restarts and **every review decision is cleared** |
+| `GET /api/protocols/{id}/pages/{n}`  | —                                        | `{ "page", "page_count", "heading": string \| null, "paragraphs": string[] }`   |
+| `GET /api/protocols/{id}/usdm`       | —                                        | The USDM 4.0 JSON document                                                      |
+| `POST /api/protocols/{id}/store`     | `{ "reviewer_id" }`                      | `ProtocolSummary` with `stored: true`                                           |
+
+The app polls `GET /api/protocols/{id}` every `VITE_POLL_INTERVAL_MS` (default 10 s) while the
+protocol is `processing`, and the list while any protocol is.
+
+**Upload errors** (shown per file on the upload page): `400` not a PDF or Word file, `401`
+API key refused, `413` over 60 MB, `503` service not configured.
+
+**Source pages**: the text of one page, in reading order. The UI highlights each field's
+`quote` wherever it appears verbatim (ignoring case), so `quote` must be the exact source text.
+
+## 2. Class review API (proposed)
+
+A protocol in `in_review` has a list of classes, each grouping the values of one or more
+USDM classes. Every decision is appended to the audit trail with the reviewer id; the
+protocol becomes `approved` when its last class is approved.
+
+```ts
+type ClassStatus = 'pending' | 'approved' | 'rejected' | 'edited' | 'reextracting';
+
+interface UsdmClass {
+  id: string; // e.g. "study-design"
+  name: string; // e.g. "Study Design"
+  usdm_classes: string[]; // e.g. ["InterventionalStudyDesign"]
+  page: number; // main source page
+  model_confidence: number; // 0–100, from the latest extraction
+  status: ClassStatus;
+  fields: {
+    id: string;
+    label: string;
+    value: string;
+    quote: string; // verbatim source text
+    page: number;
+    quote_located: boolean; // quote found word for word on `page`
+  }[];
+  soa: { visits: string[]; activities: { name: string; scheduled: boolean[] }[] } | null;
+}
+```
+
+| Method and path                                      | Body                                                                   | Response                     |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| `GET /api/protocols/{id}/classes`                    | —                                                                      | `UsdmClass[]`                |
+| `POST /api/protocols/{id}/classes/{class}/approve`   | `{ "reviewer_id" }`                                                    | `UsdmClass` (`approved`)     |
+| `POST /api/protocols/{id}/classes/{class}/reject`    | `{ "reviewer_id" }`                                                    | `UsdmClass` (`rejected`)     |
+| `PUT /api/protocols/{id}/classes/{class}/fields`     | `{ "reviewer_id", "reason", "values": { "<field id>": "new value" } }` | `UsdmClass` (`edited`)       |
+| `POST /api/protocols/{id}/classes/{class}/reextract` | `{ "reviewer_id" }`                                                    | `UsdmClass` (`reextracting`) |
+
+`reason` is required for an edit (`422` otherwise). An edited class still needs an explicit
+approval. A class being re-extracted is polled through `GET .../classes` until it is
+`pending` again, with its new values and `model_confidence`.
+
+### Confidence
+
+To be confirmed with the product owner (from the design notes). Per class: approved 100,
+edited 95, rejected at most 30, otherwise `model_confidence`. A protocol's `confidence` is
+the rounded average over its classes. The frontend computes the same figures live
+(`src/features/usdm-review/confidence.ts`) as the reviewer works.
+
+## 3. CORS (needed)
 
 The frontend is served from its own origin (e.g. `http://localhost:5173` in development), so
-the browser blocks every call unless both backend services allow that origin. Proposed change,
-in both `usdm4_api.app.create_app` and `usdm4_assure.review.app`:
+the browser blocks every call unless the backend allows that origin:
 
 ```python
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,82 +158,10 @@ origins = [o.strip() for o in os.environ.get("USDM4_CORS_ORIGINS", "").split(","
 if origins:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,               # e.g. "http://localhost:5173,https://usdm4.example.com"
-        allow_methods=["GET", "POST"],
+        allow_origins=origins,               # e.g. "http://localhost:5173,https://idigitise.example.com"
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Content-Type", "X-API-Key"],
-        expose_headers=["X-Run-Id", "X-Converter"],
     )
 ```
 
 Unset means no CORS headers, which keeps today's behaviour.
-
-## 3. Review API (proposed)
-
-A JSON version of the existing HTMX routes in `usdm4_assure/review/app.py`. Same data, same
-rules (append-only audit store, edits need a reason and a reviewer id); only the response
-format changes. All paths are relative to `REVIEW_API_URL`. Path segments are URL-encoded.
-
-Errors use the usual FastAPI shape: `{"detail": "message"}` with `404` for an unknown source
-or field, `422` for a missing or invalid body field.
-
-### Types
-
-`AuditRecord` is `AuditRecord.to_row()` from `contracts_audit.py`, with `bbox`,
-`retrieval_config` and `verification` as JSON values rather than JSON text:
-
-```ts
-interface AuditRecord {
-  record_id: string;
-  run_id: string;
-  event: 'extraction' | 'review_edit' | 'certify' | 'calibration';
-  source_sha256: string;
-  domain: string;
-  field: string | null;
-  timestamp_utc: string; // ISO 8601
-  value: string | null;
-  method: string | null;
-  decision: 'auto_accept' | 'review' | 'block' | null;
-  confidence: number | null;
-  page: number | null;
-  bbox: [number, number, number, number] | null;
-  quote_text: string | null;
-  verify_pass: 'exact' | 'normalized' | 'failed' | null;
-  reviewer_id: string | null;
-  prior_value: string | null;
-  reason_for_change: string | null;
-  signature_meaning: string | null;
-  // ...the remaining AuditRecord columns may be included; the UI ignores them.
-}
-
-interface SourceSummary {
-  // review/data.py SourceSummary
-  source_sha256: string;
-  pdf_path: string | null;
-  n_records: number;
-  n_fields: number;
-  run_ids: string[];
-  decision_summary: { auto_accept: number; review: number; block: number };
-  certified: boolean;
-}
-
-interface DistanceSummary {
-  // review/telemetry.py DistanceSummary
-  n_fields: number;
-  n_edited: number;
-  mean_distance: number | null;
-  mean_distance_of_edited: number | null;
-}
-```
-
-### Endpoints
-
-| Method and path                                                 | Replaces HTMX route                               | Response                                                                                                                                    |
-| --------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/review/sources`                                       | `GET /`                                           | `SourceSummary[]`                                                                                                                           |
-| `GET /api/review/sources/{sha}`                                 | `GET /source/{sha}`                               | `{ "summary": SourceSummary, "fields": AuditRecord[] }` — current value of every field, **already risk-sorted** (`review_data.risk_sorted`) |
-| `GET /api/review/sources/{sha}/fields/{domain}/{field}/history` | `GET /source/{sha}/history/{domain}/{field}`      | `AuditRecord[]`, oldest first                                                                                                               |
-| `GET /api/review/sources/{sha}/crop?page=&x0=&y0=&x1=&y1=`      | `GET /source/{sha}/crop`                          | `image/png` (unchanged)                                                                                                                     |
-| `POST /api/review/sources/{sha}/fields/{domain}/{field}/edit`   | `POST /source/{sha}/fields/{domain}/{field}/edit` | body `{ "value", "reason", "reviewer_id" }` → the new `AuditRecord`                                                                         |
-| `POST /api/review/sources/{sha}/certify`                        | `POST /source/{sha}/certify`                      | body `{ "reviewer_id", "signature_meaning" }` → `{ "record": AuditRecord, "telemetry": DistanceSummary }`                                   |
-
-`signature_meaning` defaults to `"Reviewed and approved for submission"` when omitted, as today.

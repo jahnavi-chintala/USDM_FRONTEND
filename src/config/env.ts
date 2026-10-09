@@ -5,12 +5,11 @@
  * 1. `window.__APP_CONFIG__`, written to `/config.js` by the Docker image at start-up, so one
  *    build can be deployed to any environment;
  * 2. `VITE_*` variables, read at build time (see `.env.example`);
- * 3. the defaults below, which match the backend's local development ports.
+ * 3. the defaults below, which match the backend's local development port.
  */
 
 export interface RuntimeConfig {
-  convertApiUrl?: string;
-  reviewApiUrl?: string;
+  apiUrl?: string;
 }
 
 declare global {
@@ -20,12 +19,10 @@ declare global {
 }
 
 export interface AppConfig {
-  /** Base URL of the conversion API (`/v1/*`). */
-  convertApiUrl: string;
-  /** Base URL of the review API (`/api/review/*`). */
-  reviewApiUrl: string;
-  /** Delay between two status checks of a running conversion job. */
-  jobPollIntervalMs: number;
+  /** Base URL of the protocol API (`/api/protocols/*`, see docs/api-contract.md). */
+  apiUrl: string;
+  /** Delay between two status checks of something the backend is still working on. */
+  pollIntervalMs: number;
   /** When true, Mock Service Worker answers every API call. */
   mocksEnabled: boolean;
 }
@@ -50,13 +47,10 @@ export function resolveConfig(
   env: ImportMetaEnv = import.meta.env,
 ): AppConfig {
   return {
-    convertApiUrl: stripTrailingSlash(
-      firstNonEmpty(runtime.convertApiUrl, env.VITE_CONVERT_API_URL) ?? 'http://localhost:8080',
+    apiUrl: stripTrailingSlash(
+      firstNonEmpty(runtime.apiUrl, env.VITE_API_URL) ?? 'http://localhost:8080',
     ),
-    reviewApiUrl: stripTrailingSlash(
-      firstNonEmpty(runtime.reviewApiUrl, env.VITE_REVIEW_API_URL) ?? 'http://localhost:8000',
-    ),
-    jobPollIntervalMs: parsePositiveInt(env.VITE_JOB_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS),
+    pollIntervalMs: parsePositiveInt(env.VITE_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS),
     mocksEnabled: env.VITE_MOCKS === 'true',
   };
 }

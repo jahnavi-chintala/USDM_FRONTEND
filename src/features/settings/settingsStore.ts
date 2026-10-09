@@ -5,9 +5,9 @@ import { createPersistedStore } from '@/shared/storage/createStore';
  * forgets the API key, so it is never left behind on a shared machine.
  */
 export interface Settings {
-  /** Sent as `X-API-Key` to the conversion API. Empty when the API is open. */
+  /** Sent as `X-API-Key` with every request. Empty when the API is open. */
   apiKey: string;
-  /** Pre-filled on every review edit and certification. */
+  /** Recorded with every review decision (approve, reject, edit, re-extract, store). */
   reviewerId: string;
 }
 
