@@ -1,0 +1,12 @@
+# Runs the built frontend on http://localhost:3000.
+# The URLs are the backend addresses as seen from the browser, not from the container.
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - '3000:80'
+    environment:
+      CONVERT_API_URL: http://localhost:8080
+      REVIEW_API_URL: http://localhost:8000
