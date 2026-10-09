@@ -7,6 +7,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- The app starts with no protocols: Home is empty until you upload one. The example protocols
+  are only used by the unit tests.
+
 - The whole interface now follows the **iDigitise Protocol UI** design: navy header with the
   iDigitise logo, Manrope type, the purple accent, and the screens below. The separate
   Convert and Review pages are replaced.
