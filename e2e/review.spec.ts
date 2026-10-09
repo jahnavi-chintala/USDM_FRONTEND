@@ -1,41 +1,35 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-async function signIn(page: Page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByLabel('Reviewer id').fill('jdoe');
-  await page.getByRole('button', { name: 'Save' }).click();
-}
+import { setReviewer, uploadForReview } from './helpers';
 
 test('review by class: reject, edit with a reason, approve everything, then export', async ({
   page,
 }) => {
-  await signIn(page);
-  await page.getByRole('link', { name: /ALPHA-301/ }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Review ALPHA-301' })).toBeVisible();
+  await uploadForReview(page, 'ALPHA-301_protocol.pdf', 'ALPHA-301');
+  await setReviewer(page);
 
   const classes = page.getByRole('navigation', { name: 'USDM classes', exact: true });
   const data = page.getByRole('region', { name: 'Extracted data' });
   const source = page.getByRole('region', { name: 'Source protocol page' });
 
   // Opens on the first class still to review, with its quotes on the source page.
-  await expect(data.getByRole('heading', { name: 'Study Design' })).toBeVisible();
-  await expect(source.locator('mark', { hasText: 'approximately 480 participants' })).toBeVisible();
+  await expect(data.getByRole('heading', { name: 'Study & Identifiers' })).toBeVisible();
+  await expect(source.locator('mark', { hasText: 'Protocol Number: ZLV-3-0301' })).toBeVisible();
 
   await data.getByRole('button', { name: 'Reject' }).click();
   await expect(data.getByText('Rejected', { exact: true })).toBeVisible();
   await expect(data.getByText(/Marked incorrect/)).toBeVisible();
 
   await data.getByRole('button', { name: 'Edit' }).click();
-  await data.getByRole('textbox', { name: 'Planned enrolment' }).fill('482 participants');
+  await data.getByRole('textbox', { name: 'Sponsor protocol ID' }).fill('ZLV-3-0302');
   await expect(data.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   await data.getByLabel('Reason for change').fill('Typo in the extraction');
   await data.getByRole('button', { name: 'Save changes' }).click();
   await expect(data.getByText('Edited · needs approval')).toBeVisible();
-  await expect(data.getByText('482 participants')).toBeVisible();
+  await expect(data.getByText('ZLV-3-0302')).toBeVisible();
 
   // Approving moves on to the next open class, until every class is approved.
-  for (let approved = 2; approved < 9; approved += 1) {
+  for (let approved = 0; approved < 9; approved += 1) {
     await data.getByRole('button', { name: 'Approve' }).click();
     await expect(classes.getByText(`${approved + 1}/9 approved`)).toBeVisible();
   }
@@ -60,7 +54,7 @@ test('review by class: reject, edit with a reason, approve everything, then expo
 });
 
 test('asks for a reviewer id before recording decisions', async ({ page }) => {
-  await page.goto('/protocols/epsilon-5');
+  await uploadForReview(page, 'EPSILON-5_protocol.pdf', 'EPSILON-5');
   const data = page.getByRole('region', { name: 'Extracted data' });
   await expect(
     data.getByText('Set your reviewer id in Settings to record review decisions.'),
@@ -74,8 +68,8 @@ test('asks for a reviewer id before recording decisions', async ({ page }) => {
 });
 
 test('re-extracting one class shows its progress and then a fresh score', async ({ page }) => {
-  await signIn(page);
-  await page.goto('/protocols/epsilon-5');
+  await uploadForReview(page, 'EPSILON-5_protocol.pdf', 'EPSILON-5');
+  await setReviewer(page);
   const data = page.getByRole('region', { name: 'Extracted data' });
   await expect(data.getByRole('heading', { name: 'Study & Identifiers' })).toBeVisible();
   await data.getByRole('button', { name: 'Re-extract' }).click();

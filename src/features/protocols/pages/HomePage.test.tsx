@@ -3,12 +3,23 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
 import { config } from '@/config/env';
+import { resetProtocolDb } from '@/mocks/protocols/db';
 import { server } from '@/mocks/server';
 import { renderWithProviders } from '@/test/render';
 
 import { HomePage } from './HomePage';
 
 describe('HomePage', () => {
+  it('starts empty and invites an upload', async () => {
+    resetProtocolDb();
+    renderWithProviders(<HomePage />);
+    expect(
+      await screen.findByText('No protocols in progress. Upload one to start.'),
+    ).toBeInTheDocument();
+    const counts = screen.getByLabelText('Protocol counts');
+    expect(within(counts).getByText('Processing').parentElement).toHaveTextContent('Processing0');
+  });
+
   it('shows the counts and the protocols in progress, newest first', async () => {
     renderWithProviders(<HomePage />);
 

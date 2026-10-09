@@ -96,7 +96,8 @@ function base(
   return protocol;
 }
 
-function seed(): void {
+/** Example protocols in every state, for the unit tests. The app itself starts empty. */
+export function seedSampleProtocols(): void {
   const add = (p: MockProtocol) => protocols.set(p.id, p);
   add(
     base({
@@ -290,10 +291,10 @@ function detail(protocol: MockProtocol): ProtocolDetail {
 
 // ---- API ------------------------------------------------------------------------------------
 
+/** Empties the store: the app starts with no protocols until one is uploaded. */
 export function resetProtocolDb(): void {
   protocols.clear();
   counter = 0;
-  seed();
 }
 
 export function listProtocols(): ProtocolSummary[] {
