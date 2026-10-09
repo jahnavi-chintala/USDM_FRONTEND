@@ -1,7 +1,9 @@
 import type { RequestHandler } from 'msw';
 
+import { convertHandlers } from './convert/handlers';
+
 /**
  * Mock API handlers, one module per backend feature. Used by `npm run dev:mock`,
  * the Playwright tests (browser worker) and the Vitest tests (Node server).
  */
-export const handlers: RequestHandler[] = [];
+export const handlers: RequestHandler[] = [...convertHandlers];
