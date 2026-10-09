@@ -45,13 +45,13 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
             autoComplete="off"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
-            helperText="Sent as X-API-Key to the conversion API. Leave empty if the API is open. Kept for this browser tab only."
+            helperText="Sent as X-API-Key with every request. Leave empty if the API is open. Kept for this browser tab only."
           />
           <TextField
             label="Reviewer id"
             value={reviewerId}
             onChange={(event) => setReviewerId(event.target.value)}
-            helperText="Recorded in the audit trail with every edit and certification."
+            helperText="Recorded in the audit trail with every approval, rejection and edit."
           />
         </Stack>
       </DialogContent>

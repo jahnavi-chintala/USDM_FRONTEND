@@ -14,9 +14,8 @@ COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=0755 docker/40-write-app-config.sh /docker-entrypoint.d/40-write-app-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Backend URLs as seen from the user's browser. Override with `docker run -e ...`.
-ENV CONVERT_API_URL="" \
-    REVIEW_API_URL=""
+# Backend URL as seen from the user's browser. Override with `docker run -e ...`.
+ENV API_URL=""
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1/healthz || exit 1

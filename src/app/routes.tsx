@@ -1,7 +1,6 @@
-import { Navigate, type RouteObject } from 'react-router';
+import type { RouteObject } from 'react-router';
 
-import { ConvertPage, JobPage } from '@/features/convert';
-import { ReviewSourcesPage, SourceReviewPage } from '@/features/review';
+import { HomePage, ProtocolPage, UploadsPage } from '@/features/protocols';
 
 import { AppLayout } from './AppLayout';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -13,11 +12,9 @@ export const routes: RouteObject[] = [
     element: <AppLayout />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <Navigate to="/convert" replace /> },
-      { path: 'convert', element: <ConvertPage /> },
-      { path: 'convert/jobs/:jobId', element: <JobPage /> },
-      { path: 'review', element: <ReviewSourcesPage /> },
-      { path: 'review/:sha', element: <SourceReviewPage /> },
+      { index: true, element: <HomePage /> },
+      { path: 'uploads', element: <UploadsPage /> },
+      { path: 'protocols/:protocolId', element: <ProtocolPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

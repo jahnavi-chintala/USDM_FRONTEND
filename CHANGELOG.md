@@ -5,22 +5,28 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The whole interface now follows the **iDigitise Protocol UI** design: navy header with the
+  iDigitise logo, Manrope type, the purple accent, and the screens below. The separate
+  Convert and Review pages are replaced.
+- One backend address (`VITE_API_URL` / `API_URL`) instead of two; the app talks to the
+  proposed protocol API in `docs/api-contract.md` (mocked until the backend implements it).
+
 ### Added
 
-- Review: the list of source PDFs with audit history, and per source the fields sorted
-  worst-first (block, review, auto-accept; then lowest confidence), with low-confidence rows
-  highlighted, the source-PDF crop of each field, its full history, audited edits (value,
-  reason, reviewer id) and certification with the post-edit distance summary. Same features as
-  the backend's HTMX review tool, against the proposed JSON API in `docs/api-contract.md`
-  (mocked until the backend implements it).
-- The reviewer id entered once is reused in every edit and certification form.
-- Convert: upload a protocol PDF (drag and drop or file picker), follow the conversion job
-  (polled every 10 s), and see the result: field-decision counts, validation gates, run details,
-  a collapsible USDM JSON viewer, and downloads of the USDM document and the report.
-- "My conversions": the jobs submitted from this browser, kept in localStorage, with expired
-  jobs marked as such.
-- Clear messages for every error the conversion API returns (missing API key, file too large,
-  encrypted or scanned PDF, assembly failure, timeout).
+- Home: greeting with the counts (processing, ready for review, need attention, approved),
+  the upload card, and the protocols **In Progress** and **Approved** with search and a status
+  filter.
+- Upload of several PDF or Word files at once, each tracked on its own with a specific reason
+  and Retry when it is refused. Wrong types and files over 60 MB are refused before sending.
+- Processing page with the three named stages and a live log; Failed page with the reason,
+  what to do, Retry processing and Re-upload.
+- Review per USDM class: class list with status and confidence, approve, reject, edit (reason
+  required) and re-extract one class or the whole protocol; every value with its verbatim
+  quote, highlighted on the source page; Schedule of Activities grid; live confidence ring.
+- Approved: download the USDM JSON and store the output in the database.
+- Review on phones: class chips, stacked source page and sticky actions.
 - Project setup: React + TypeScript (Vite), MUI, React Router, TanStack Query.
 - App shell with navigation and a Settings dialog (API key, reviewer id).
 - Runtime configuration of backend URLs (`/config.js`), Docker image with nginx.

@@ -9,9 +9,8 @@ json_escape() {
 
 cat > /usr/share/nginx/html/config.js <<CONFIG
 window.__APP_CONFIG__ = {
-  convertApiUrl: "$(json_escape "${CONVERT_API_URL:-}")",
-  reviewApiUrl: "$(json_escape "${REVIEW_API_URL:-}")"
+  apiUrl: "$(json_escape "${API_URL:-}")"
 };
 CONFIG
 
-echo "app config: convertApiUrl=${CONVERT_API_URL:-<default>} reviewApiUrl=${REVIEW_API_URL:-<default>}"
+echo "app config: apiUrl=${API_URL:-<default>}"
